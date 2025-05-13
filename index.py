@@ -35,6 +35,24 @@ quiz = [
             "Herbologia": "Lufa-Lufa",
         },
     },
+    {
+        "pergunta": "Como você prefere resolver um conflito?",
+        "opcoes": {
+            "Encarando de frente, mesmo que arriscado": "Grifinória",
+            "Usando estratégia para sair por cima": "Sonserina",
+            "Analisando friamente todos os lados": "Corvinal",
+            "Buscando um acordo que ajude todos": "Lufa-Lufa",
+        },
+    },
+    {
+        "pergunta": "O que te motiva a alcançar seus objetivos?",
+        "opcoes": {
+            "O desejo de fazer a coisa certa": "Grifinória",
+            "A vontade de ser reconhecido e influente": "Sonserina",
+            "A busca constante por aprender e evoluir": "Corvinal",
+            "A satisfação de ajudar e ser justo com todos": "Lufa-Lufa",
+        },
+    },
 ]
 
 respostas = []
@@ -48,6 +66,14 @@ def iniciar_quiz():
     if not nome:
         messagebox.showwarning("Aviso", "Digite o nome do participante.")
         return
+
+    img_path = f"participantes/{nome}.png"
+    if os.path.exists(img_path):
+        messagebox.showerror(
+            "Erro", "Este nome já foi utilizado. Use um nome diferente."
+        )
+        return
+
     respostas = []
     pontos.update({chave: 0 for chave in pontos})
     pergunta_atual = 0
@@ -70,7 +96,7 @@ def mostrar_pergunta():
             font=("Georgia", 12, "bold"),
             bg="#3A3A3C",
             fg="white",
-            width=20,
+            width=35,  # Ajustei a largura para acomodar textos maiores
             relief="raised",
             command=lambda c=casa: responder(c),
         )
@@ -90,18 +116,24 @@ def responder(casa):
 
 def capturar_imagem():
     nome = entry_nome.get().strip()
+    img_path = f"participantes/{nome}.png"
+
     cam = cv2.VideoCapture(0)
     cv2.namedWindow("Captura de Imagem - Pressione Espaço")
     while True:
         ret, frame = cam.read()
         cv2.imshow("Captura de Imagem - Pressione Espaço", frame)
         key = cv2.waitKey(1)
-        if key % 256 == 32:
-            img_path = f"participantes/{nome}.png"
+        if key == ord(" "):  # Tecla espaço
             cv2.imwrite(img_path, frame)
             break
     cam.release()
     cv2.destroyAllWindows()
+
+    if not os.path.exists(img_path):
+        messagebox.showerror("Erro", "Imagem não capturada corretamente.")
+        return
+
     mostrar_resultado(nome, img_path)
 
 
@@ -109,14 +141,21 @@ def mostrar_resultado(nome, img_path):
     casa_final = max(pontos, key=pontos.get)
     with open("participantes/dados.txt", "a") as f:
         f.write(f"{nome} - {casa_final}\n")
+
     img = Image.open(img_path)
     img = img.resize((200, 200))
     photo = ImageTk.PhotoImage(img)
     img_label.config(image=photo)
     img_label.image = photo
+
     messagebox.showinfo(
         "Chapéu Seletor", f"{nome}, você foi selecionado para a casa: {casa_final}!"
     )
+
+    # ✅ REATIVAR campos para novo quiz
+    entry_nome.config(state="normal")
+    entry_nome.delete(0, tk.END)  # limpa o nome anterior
+    btn_iniciar.config(state="normal")
 
 
 def mostrar_ranking():
@@ -124,6 +163,7 @@ def mostrar_ranking():
     rank_window.title("Ranking dos Participantes")
     rank_window.geometry("600x500")
     rank_window.configure(bg="#1E1E2F")
+
     tk.Label(
         rank_window,
         text="🏆 Ranking dos Participantes",
@@ -131,9 +171,11 @@ def mostrar_ranking():
         bg="#1E1E2F",
         fg="gold",
     ).pack(pady=10)
+
     canvas = tk.Canvas(rank_window, bg="#1E1E2F")
     scrollbar = tk.Scrollbar(rank_window, orient="vertical", command=canvas.yview)
     scrollable_frame = tk.Frame(canvas, bg="#1E1E2F")
+
     scrollable_frame.bind(
         "<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
     )
@@ -141,20 +183,26 @@ def mostrar_ranking():
     canvas.configure(yscrollcommand=scrollbar.set)
     canvas.pack(side="left", fill="both", expand=True)
     scrollbar.pack(side="right", fill="y")
+
     contadores = {"Grifinória": 0, "Sonserina": 0, "Corvinal": 0, "Lufa-Lufa": 0}
+
     if os.path.exists("participantes/dados.txt"):
         with open("participantes/dados.txt", "r") as f:
             linhas = f.readlines()
+
         for linha in linhas:
             if "-" not in linha:
                 continue
             nome, casa = [parte.strip() for parte in linha.strip().split("-")]
-            contadores[casa] += 1
+            if casa in contadores:
+                contadores[casa] += 1
+
             img_path = f"participantes/{nome}.png"
             frame = tk.Frame(
                 scrollable_frame, bg="#2C2C3A", bd=1, relief="solid", padx=10, pady=10
             )
             frame.pack(pady=5, padx=10, fill="x")
+
             if os.path.exists(img_path):
                 img = Image.open(img_path)
                 img = img.resize((60, 60))
@@ -162,6 +210,7 @@ def mostrar_ranking():
                 lbl_img = tk.Label(frame, image=photo, bg="#2C2C3A")
                 lbl_img.image = photo
                 lbl_img.pack(side="left", padx=10)
+
             info = tk.Label(
                 frame,
                 text=f"{nome} - {casa}",
@@ -170,6 +219,7 @@ def mostrar_ranking():
                 bg="#2C2C3A",
             )
             info.pack(side="left")
+
     total_frame = tk.Frame(rank_window, pady=10, bg="#1E1E2F")
     total_frame.pack()
     for casa, count in contadores.items():
@@ -185,7 +235,7 @@ def mostrar_ranking():
 # Interface principal
 root = tk.Tk()
 root.title("Chapéu Seletor - Hogwarts")
-root.geometry("600x600")
+root.geometry("700x650")  # Aumentei o tamanho da janela
 root.configure(bg="#1E1E2F")
 
 tk.Label(
@@ -199,6 +249,7 @@ tk.Label(
 tk.Label(
     root, text="Digite seu nome:", font=("Arial", 14), bg="#1E1E2F", fg="white"
 ).pack(pady=10)
+
 entry_nome = tk.Entry(root, font=("Arial", 14), justify="center")
 entry_nome.pack(pady=5)
 
@@ -231,12 +282,15 @@ lbl_pergunta = tk.Label(
     frame_quiz,
     text="",
     font=("Arial", 14, "bold"),
-    wraplength=400,
+    wraplength=550,  # Aumentei o wraplength
     justify="center",
     bg="#1E1E2F",
     fg="white",
+    padx=20,
+    pady=10,
 )
 lbl_pergunta.pack(pady=10)
+
 frame_opcoes = tk.Frame(frame_quiz, bg="#1E1E2F")
 frame_opcoes.pack()
 
